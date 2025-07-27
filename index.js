@@ -1,20 +1,31 @@
-const express = require('express');
-const TelegramBot = require('node-telegram-bot-api');
-const path = require('path');
+import express from 'express';
+import TelegramBot from 'node-telegram-bot-api';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+// Configure __dirname equivalent for ES Modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);
 
-// Replace with your bot token from @BotFather
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE';
+// Get environment variables
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const WEB_APP_URL = process.env.WEB_APP_URL;
 
-// Replace with your web app URL after deployment
-const WEB_APP_URL = process.env.WEB_APP_URL || 'https://your-app.onrender.com';
+if (!BOT_TOKEN) {
+  throw new Error('TELEGRAM_BOT_TOKEN is not defined in environment variables');
+}
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// Serve static files (if needed)
-app.use(express.static(path.join(__dirname, 'public')));
+// Serve static files
+app.use(express.static(join(__dirname, 'public')));
 
 // Health check endpoints
 app.get('/', (req, res) => {
@@ -70,7 +81,7 @@ bot.onText(/\/start/, (msg) => {
 });
 
 // Callback query handler
-bot.on('callback_query', (callbackQuery) => {
+bot.on('callback_query', async (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
 
@@ -90,7 +101,7 @@ bot.on('callback_query', (callbackQuery) => {
         }
       };
       
-      bot.editMessageText(
+      await bot.editMessageText(
         '📋 Choose a category to browse:',
         {
           chat_id: chatId,
@@ -101,7 +112,7 @@ bot.on('callback_query', (callbackQuery) => {
       break;
 
     case 'stars':
-      bot.editMessageText(
+      await bot.editMessageText(
         '⭐ **Telegram Stars** are the official currency for digital purchases!\n\n' +
         '💰 **Available Star Bundles:**\n' +
         '• 100 Stars - \$9.99\n' +
@@ -127,7 +138,7 @@ bot.on('callback_query', (callbackQuery) => {
       break;
 
     case 'help':
-      bot.editMessageText(
+      await bot.editMessageText(
         '❓ **How to use TeleMarket:**\n\n' +
         '1️⃣ Click "Open Marketplace" to browse products\n' +
         '2️⃣ Add items to your cart\n' +
@@ -153,25 +164,27 @@ bot.on('callback_query', (callbackQuery) => {
       break;
 
     case 'back_to_menu':
-      bot.deleteMessage(chatId, callbackQuery.message.message_id)
-        .then(() => {
-          bot.sendMessage(chatId, 'Main menu:', {
-            reply_markup: {
-              inline_keyboard: [
-                [{ text: '🛍️ Open Marketplace', web_app: { url: WEB_APP_URL } }],
-                [
-                  { text: '📋 Browse Categories', callback_data: 'categories' },
-                  { text: '💎 Telegram Stars', callback_data: 'stars' }
-                ],
-                [{ text: '❓ Help', callback_data: 'help' }]
-              ]
-            }
-          });
+      try {
+        await bot.deleteMessage(chatId, callbackQuery.message.message_id);
+        await bot.sendMessage(chatId, 'Main menu:', {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🛍️ Open Marketplace', web_app: { url: WEB_APP_URL } }],
+              [
+                { text: '📋 Browse Categories', callback_data: 'categories' },
+                { text: '💎 Telegram Stars', callback_data: 'stars' }
+              ],
+              [{ text: '❓ Help', callback_data: 'help' }]
+            ]
+          }
         });
+      } catch (error) {
+        console.error('Error handling back_to_menu:', error);
+      }
       break;
   }
 
-  bot.answerCallbackQuery(callbackQuery.id);
+  await bot.answerCallbackQuery(callbackQuery.id);
 });
 
 // Handle regular messages
@@ -192,8 +205,13 @@ bot.on('error', (error) => console.error('Bot error:', error));
 bot.on('polling_error', (error) => console.error('Polling error:', error));
 
 // Start server
-app.listen(port, '0.0.0.0', () => {
+app.listen(port, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${port}`);
-  console.log(`🤖 Bot started: @${bot.getMe().then(me => me.username)}`);
+  try {
+    const me = await bot.getMe();
+    console.log(`🤖 Bot started: @${me.username}`);
+  } catch (error) {
+    console.error('Failed to get bot info:', error);
+  }
   console.log(`📱 WebApp URL: ${WEB_APP_URL}`);
 });

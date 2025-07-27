@@ -1,16 +1,26 @@
 
-// Telegram Bot for the Marketplace
-// This bot provides commands and launches the web app
+const express = require('express');
+const TelegramBot = require('node-telegram-bot-api');
 
-import TelegramBot from 'node-telegram-bot-api';
+const app = express();
+const port = parseInt(process.env.PORT || '5000', 10);
 
 // Replace with your bot token from @BotFather
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE';
 
 // Replace with your web app URL after deployment
-const WEB_APP_URL = process.env.WEB_APP_URL || 'https://your-webapp.onrender.com';
+const WEB_APP_URL = process.env.WEB_APP_URL || 'https://your-app.replit.app';
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
+
+// Basic health check endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'Bot is running', timestamp: new Date().toISOString() });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', bot: 'active' });
+});
 
 // Start command - shows main menu with web app button
 bot.onText(/\/start/, (msg) => {
@@ -163,58 +173,8 @@ bot.on('callback_query', (callbackQuery) => {
         }
       );
       break;
-
-    case 'back_to_menu':
-      // Restart the bot (call start command)
-      const firstName = callbackQuery.from.first_name || 'there';
-      const startOptions = {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: '🛍️ Open Marketplace',
-                web_app: { url: WEB_APP_URL }
-              }
-            ],
-            [
-              {
-                text: '📋 Browse Categories',
-                callback_data: 'categories'
-              },
-              {
-                text: '💎 Telegram Stars',
-                callback_data: 'stars'
-              }
-            ],
-            [
-              {
-                text: '❓ Help',
-                callback_data: 'help'
-              }
-            ]
-          ]
-        }
-      };
-
-      bot.editMessageText(
-        `🎉 Welcome to TeleMarket, ${firstName}!\n\n` +
-        `🛍️ Your one-stop shop for Telegram gifts:\n` +
-        `• 🎭 Animated Sticker Packs\n` +
-        `• 🌟 Premium Features\n` +
-        `• 🎨 Digital Collectibles\n` +
-        `• 🎁 Gift Cards & Stars\n` +
-        `• 🎯 Custom Themes\n\n` +
-        `Click "Open Marketplace" to start shopping!`,
-        {
-          chat_id: chatId,
-          message_id: callbackQuery.message.message_id,
-          ...startOptions
-        }
-      );
-      break;
   }
 
-  // Answer the callback query
   bot.answerCallbackQuery(callbackQuery.id);
 });
 
@@ -243,9 +203,6 @@ bot.on('message', (msg) => {
   }
 });
 
-console.log('🤖 Telegram bot is running...');
-console.log('📱 Web App URL:', WEB_APP_URL);
-
 // Error handling
 bot.on('error', (error) => {
   console.error('Bot error:', error);
@@ -255,15 +212,9 @@ bot.on('polling_error', (error) => {
   console.error('Polling error:', error);
 });
 
-// Keep the process alive
-process.on('SIGINT', () => {
-  console.log('Bot shutting down...');
-  bot.stopPolling();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  console.log('Bot shutting down...');
-  bot.stopPolling();
-  process.exit(0);
+// Start the HTTP server
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🌐 HTTP server listening on port ${port}`);
+  console.log('🤖 Telegram bot is running...');
+  console.log('📱 Web App URL:', WEB_APP_URL);
 });

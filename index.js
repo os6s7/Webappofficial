@@ -3,11 +3,7 @@ import TelegramBot from 'node-telegram-bot-api';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-app.use(express.static(path.join(__dirname, 'public')));
 // Load environment variables
 dotenv.config();
 

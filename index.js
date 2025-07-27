@@ -1,6 +1,6 @@
-
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
+const path = require('path');
 
 const app = express();
 const port = parseInt(process.env.PORT || '5000', 10);
@@ -9,20 +9,31 @@ const port = parseInt(process.env.PORT || '5000', 10);
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || 'YOUR_BOT_TOKEN_HERE';
 
 // Replace with your web app URL after deployment
-const WEB_APP_URL = process.env.WEB_APP_URL || 'https://your-app.replit.app';
+const WEB_APP_URL = process.env.WEB_APP_URL || 'https://your-app.onrender.com';
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-// Basic health check endpoint
+// Serve static files (if needed)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Health check endpoints
 app.get('/', (req, res) => {
-  res.json({ status: 'Bot is running', timestamp: new Date().toISOString() });
+  res.json({ 
+    status: 'Bot is running', 
+    timestamp: new Date().toISOString(),
+    web_app_url: WEB_APP_URL
+  });
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', bot: 'active' });
+  res.json({ 
+    status: 'healthy', 
+    bot: 'active',
+    uptime: process.uptime()
+  });
 });
 
-// Start command - shows main menu with web app button
+// Start command handler
 bot.onText(/\/start/, (msg) => {
   const chatId = msg.chat.id;
   const firstName = msg.from.first_name || 'there';
@@ -30,27 +41,16 @@ bot.onText(/\/start/, (msg) => {
   const options = {
     reply_markup: {
       inline_keyboard: [
+        [{
+          text: '🛍️ Open Marketplace',
+          web_app: { url: WEB_APP_URL }
+        }],
         [
-          {
-            text: '🛍️ Open Marketplace',
-            web_app: { url: WEB_APP_URL }
-          }
+          { text: '📋 Browse Categories', callback_data: 'categories' },
+          { text: '💎 Telegram Stars', callback_data: 'stars' }
         ],
         [
-          {
-            text: '📋 Browse Categories',
-            callback_data: 'categories'
-          },
-          {
-            text: '💎 Telegram Stars',
-            callback_data: 'stars'
-          }
-        ],
-        [
-          {
-            text: '❓ Help',
-            callback_data: 'help'
-          }
+          { text: '❓ Help', callback_data: 'help' }
         ]
       ]
     }
@@ -69,7 +69,7 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-// Handle callback queries
+// Callback query handler
 bot.on('callback_query', (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
   const data = callbackQuery.data;
@@ -79,27 +79,13 @@ bot.on('callback_query', (callbackQuery) => {
       const categoriesKeyboard = {
         reply_markup: {
           inline_keyboard: [
-            [
-              { text: '🎭 Sticker Packs', web_app: { url: `${WEB_APP_URL}?category=sticker-packs` } }
-            ],
-            [
-              { text: '🌟 Premium Features', web_app: { url: `${WEB_APP_URL}?category=premium-features` } }
-            ],
-            [
-              { text: '🎨 Digital Collectibles', web_app: { url: `${WEB_APP_URL}?category=digital-collectibles` } }
-            ],
-            [
-              { text: '🎁 Gift Cards', web_app: { url: `${WEB_APP_URL}?category=gift-cards` } }
-            ],
-            [
-              { text: '🎯 Custom Themes', web_app: { url: `${WEB_APP_URL}?category=custom-themes` } }
-            ],
-            [
-              { text: '⭐ Telegram Stars', web_app: { url: `${WEB_APP_URL}?category=telegram-stars` } }
-            ],
-            [
-              { text: '🔙 Back to Menu', callback_data: 'back_to_menu' }
-            ]
+            [{ text: '🎭 Sticker Packs', web_app: { url: `${WEB_APP_URL}?category=sticker-packs` } }],
+            [{ text: '🌟 Premium Features', web_app: { url: `${WEB_APP_URL}?category=premium-features` } }],
+            [{ text: '🎨 Digital Collectibles', web_app: { url: `${WEB_APP_URL}?category=digital-collectibles` } }],
+            [{ text: '🎁 Gift Cards', web_app: { url: `${WEB_APP_URL}?category=gift-cards` } }],
+            [{ text: '🎯 Custom Themes', web_app: { url: `${WEB_APP_URL}?category=custom-themes` } }],
+            [{ text: '⭐ Telegram Stars', web_app: { url: `${WEB_APP_URL}?category=telegram-stars` } }],
+            [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
           ]
         }
       };
@@ -118,9 +104,9 @@ bot.on('callback_query', (callbackQuery) => {
       bot.editMessageText(
         '⭐ **Telegram Stars** are the official currency for digital purchases!\n\n' +
         '💰 **Available Star Bundles:**\n' +
-        '• 100 Stars - $9.99\n' +
-        '• 500 Stars - $39.99 (Save 20%)\n' +
-        '• 1000 Stars - $69.99 (Save 30%)\n\n' +
+        '• 100 Stars - \$9.99\n' +
+        '• 500 Stars - \$39.99 (Save 20%)\n' +
+        '• 1000 Stars - \$69.99 (Save 30%)\n\n' +
         '🎁 Use Stars to:\n' +
         '• Buy premium stickers\n' +
         '• Unlock exclusive features\n' +
@@ -132,12 +118,8 @@ bot.on('callback_query', (callbackQuery) => {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [
-                { text: '💎 Buy Stars', web_app: { url: `${WEB_APP_URL}?category=telegram-stars` } }
-              ],
-              [
-                { text: '🔙 Back to Menu', callback_data: 'back_to_menu' }
-              ]
+              [{ text: '💎 Buy Stars', web_app: { url: `${WEB_APP_URL}?category=telegram-stars` } }],
+              [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
             ]
           }
         }
@@ -162,59 +144,56 @@ bot.on('callback_query', (callbackQuery) => {
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [
-              [
-                { text: '🛍️ Start Shopping', web_app: { url: WEB_APP_URL } }
-              ],
-              [
-                { text: '🔙 Back to Menu', callback_data: 'back_to_menu' }
-              ]
+              [{ text: '🛍️ Start Shopping', web_app: { url: WEB_APP_URL } }],
+              [{ text: '🔙 Back to Menu', callback_data: 'back_to_menu' }]
             ]
           }
         }
       );
+      break;
+
+    case 'back_to_menu':
+      bot.deleteMessage(chatId, callbackQuery.message.message_id)
+        .then(() => {
+          bot.sendMessage(chatId, 'Main menu:', {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '🛍️ Open Marketplace', web_app: { url: WEB_APP_URL } }],
+                [
+                  { text: '📋 Browse Categories', callback_data: 'categories' },
+                  { text: '💎 Telegram Stars', callback_data: 'stars' }
+                ],
+                [{ text: '❓ Help', callback_data: 'help' }]
+              ]
+            }
+          });
+        });
       break;
   }
 
   bot.answerCallbackQuery(callbackQuery.id);
 });
 
-// Handle any text message
+// Handle regular messages
 bot.on('message', (msg) => {
-  const chatId = msg.chat.id;
-  const text = msg.text;
-
-  // Skip if it's a command (starts with /)
-  if (text && !text.startsWith('/')) {
-    bot.sendMessage(chatId, 
-      '🤖 Hi! Use /start to access the marketplace, or click the button below:',
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: '🛍️ Open Marketplace',
-                web_app: { url: WEB_APP_URL }
-              }
-            ]
-          ]
-        }
+  if (!msg.text?.startsWith('/')) {
+    bot.sendMessage(msg.chat.id, 'Use /start to access the marketplace', {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🛍️ Open Marketplace', web_app: { url: WEB_APP_URL } }]
+        ]
       }
-    );
+    });
   }
 });
 
-// Error handling
-bot.on('error', (error) => {
-  console.error('Bot error:', error);
-});
+// Error handlers
+bot.on('error', (error) => console.error('Bot error:', error));
+bot.on('polling_error', (error) => console.error('Polling error:', error));
 
-bot.on('polling_error', (error) => {
-  console.error('Polling error:', error);
-});
-
-// Start the HTTP server
+// Start server
 app.listen(port, '0.0.0.0', () => {
-  console.log(`🌐 HTTP server listening on port ${port}`);
-  console.log('🤖 Telegram bot is running...');
-  console.log('📱 Web App URL:', WEB_APP_URL);
+  console.log(`🚀 Server running on port ${port}`);
+  console.log(`🤖 Bot started: @${bot.getMe().then(me => me.username)}`);
+  console.log(`📱 WebApp URL: ${WEB_APP_URL}`);
 });
